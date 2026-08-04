@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Котик и Щенок</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&display=swap');
+
+  :root{
+    --sky: #6FC7FF;
+    --sun: #FFD54A;
+    --coral: #FF7A93;
+    --grass: #6FD98C;
+    --plum: #4A3F6B;
+    --cream: #FFFDF6;
+  }
+
+  *{ box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
+
+  html, body{
+    margin:0; padding:0; height:100%; overflow:hidden;
+    font-family: 'Baloo 2', 'Comic Sans MS', system-ui, sans-serif;
+    background: linear-gradient(160deg, var(--sky) 0%, #9FDBFF 55%, #C9ECFF 100%);
+    touch-action: manipulation;
+  }
+
+  #app{
+    height:100%;
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:flex-start;
+    padding: env(safe-area-inset-top,16px) 16px calc(env(safe-area-inset-bottom,16px) + 16px);
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* floating background clouds */
+  .cloud{
+    position:absolute; opacity:0.7; font-size:42px;
+    animation: drift 30s linear infinite;
+    pointer-events:none;
+  }
+  @keyframes drift{
+    from{ transform: translateX(-10vw); }
+    to{ transform: translateX(110vw); }
+  }
+
+  h1.title{
+    font-size: clamp(28px, 8vw, 42px);
+    color: var(--plum);
+    text-shadow: 3px 3px 0 #fff, 0 6px 12px rgba(74,63,107,0.15);
+    margin: 6px 0 2px;
+    letter-spacing: 0.5px;
+    z-index: 2;
+  }
+  .subtitle{
+    font-size: clamp(15px, 4vw, 19px);
+    color: #6A5F94;
+    margin: 0 0 10px;
+    font-weight: 500;
+    z-index: 2;
+  }
+
+  .mascots-row{
+    font-size: clamp(44px, 14vw, 64px);
+    margin: 4px 0 8px;
+    z-index: 2;
+    display:flex; gap: 18px; align-items:center;
+  }
+  .mascots-row .vs{
+    font-size: clamp(20px, 5vw, 26px);
+    color: var(--coral);
+    font-weight:800;
+  }
+
+  /* ---- Screens ---- */
+  .screen{
+    width: 100%; max-width: 460px;
+    display:flex; flex-direction:column; align-items:center;
+    flex: 1;
+    justify-content: center;
+    z-index: 2;
+  }
+  .hidden{ display:none !important; }
+
+  /* ---- Difficulty buttons ---- */
+  .level-btn{
+    width: 100%;
+    max-width: 380px;
+    border: none;
+    border-radius: 28px;
+    padding: 18px 20px;
+    margin: 10px 0;
+    font-family: inherit;
+    font-size: clamp(20px, 5.5vw, 26px);
+    font-weight: 800;
+    color: #fff;
+    display:flex; align-items:center; justify-content:space-between;
+    box-shadow: 0 8px 0 rgba(0,0,0,0.15), 0 12px 20px rgba(0,0,0,0.12);
+    cursor: pointer;
+    transition: transform 0.08s ease;
+  }
+  .level-btn:active{ transform: translateY(6px); box-shadow: 0 2px 0 rgba(0,0,0,0.15); }
+  .level-easy{ background: linear-gradient(135deg, #7EE39A, #4FCB78); }
+  .level-medium{ background: linear-gradient(135deg, #FFCB57, #FFA53D); }
+  .level-hard{ background: linear-gradient(135deg, #FF8FA3, #FF5C7A); }
+  .stars{ font-size: 0.7em; letter-spacing: 2px; }
+
+  /* ---- Board ---- */
+  #turn-banner{
+    font-size: clamp(20px, 6vw, 26px);
+    font-weight: 800;
+    color: var(--plum);
+    background: #fff;
+    padding: 10px 22px;
+    border-radius: 999px;
+    box-shadow: 0 6px 16px rgba(74,63,107,0.18);
+    margin-bottom: 16px;
+    display:flex; align-items:center; gap:10px;
+    transition: transform 0.2s ease;
+  }
+
+  #board{
+    display:grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    width: min(86vw, 340px);
+    aspect-ratio: 1/1;
+  }
+  .cell{
+    background: #fff;
+    border-radius: 22px;
+    box-shadow: 0 6px 0 rgba(74,63,107,0.15), 0 8px 14px rgba(74,63,107,0.12);
+    display:flex; align-items:center; justify-content:center;
+    font-size: clamp(38px, 11vw, 58px);
+    cursor: pointer;
+    transition: transform 0.1s ease, background 0.2s ease;
+  }
+  .cell:active{ transform: scale(0.93); }
+  .cell.filled{ cursor:default; }
+  .cell.win{ background: var(--sun); animation: pop 0.5s ease; }
+  @keyframes pop{
+    0%{ transform: scale(1); }
+    40%{ transform: scale(1.15); }
+    100%{ transform: scale(1); }
+  }
+
+  .board-footer{
+    display:flex; gap: 12px; margin-top: 20px;
+  }
+  .pill-btn{
+    border:none; border-radius: 999px; padding: 12px 22px;
+    font-family: inherit; font-weight: 700; font-size: 16px;
+    background: #fff; color: var(--plum);
+    box-shadow: 0 5px 0 rgba(0,0,0,0.1), 0 6px 12px rgba(0,0,0,0.08);
+    cursor:pointer;
+  }
+  .pill-btn:active{ transform: translateY(3px); box-shadow:none; }
+
+  /* ---- Result overlay ---- */
+  #overlay{
+    position:fixed; inset:0;
+    background: rgba(74,63,107,0.55);
+    display:flex; align-items:center; justify-content:center;
+    z-index: 20;
+    padding: 20px;
+  }
+  #overlay.hidden{ display:none; }
+  .result-card{
+    background: var(--cream);
+    border-radius: 32px;
+    padding: 32px 26px;
+    text-align:center;
+    max-width: 340px;
+    width: 100%;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.25);
+    animation: cardIn 0.35s ease;
+  }
+  @keyframes cardIn{
+    from{ transform: scale(0.7); opacity:0; }
+    to{ transform: scale(1); opacity:1; }
+  }
+  .result-emoji{ font-size: 64px; margin-bottom: 6px; }
+  .result-text{ font-size: 24px; font-weight: 800; color: var(--plum); margin-bottom: 20px; }
+  .result-buttons{ display:flex; flex-direction:column; gap: 12px; }
+  .big-btn{
+    border:none; border-radius: 20px; padding: 14px;
+    font-family:inherit; font-weight:800; font-size: 19px; color:#fff;
+    background: linear-gradient(135deg, #79D2FF, #4FB4F0);
+    box-shadow: 0 6px 0 rgba(0,0,0,0.12);
+    cursor:pointer;
+  }
+  .big-btn.secondary{ background: linear-gradient(135deg, #C9BEEC, #A497D8); }
+  .big-btn:active{ transform: translateY(4px); box-shadow:none; }
+
+  .confetti{
+    position:fixed; top:-40px; font-size: 26px;
+    animation: fall linear forwards;
+    z-index: 25; pointer-events:none;
+  }
+  @keyframes fall{
+    to{ transform: translateY(110vh) rotate(360deg); opacity: 0.3; }
+  }
+
+  footer{
+    font-size: 12px; color: #7A709E; margin-top: 8px; z-index:2;
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div class="cloud" style="top:8%; left:-10%;">☁️</div>
+  <div class="cloud" style="top:20%; left:-40%; animation-delay:-10s; font-size:30px;">☁️</div>
+  <div class="cloud" style="top:4%; left:-70%; animation-delay:-20s; font-size:24px;">☁️</div>
+
+  <h1 class="title">Котик и Щенок</h1>
+  <p class="subtitle">Игра в крестики-нолики</p>
+
+  <!-- SCREEN 1: choose level -->
+  <div id="screen-level" class="screen">
+    <div class="mascots-row">🐱 <span class="vs">против</span> 🐶</div>
+    <button class="level-btn level-easy" data-level="easy">
+      Лёгкий <span class="stars">⭐</span>
+    </button>
+    <button class="level-btn level-medium" data-level="medium">
+      Средний <span class="stars">⭐⭐</span>
+    </button>
+    <button class="level-btn level-hard" data-level="hard">
+      Сложный <span class="stars">⭐⭐⭐</span>
+    </button>
+  </div>
+
+  <!-- SCREEN 2: board -->
+  <div id="screen-game" class="screen hidden">
+    <div id="turn-banner">Твой ход! 🐱</div>
+    <div id="board"></div>
+    <div class="board-footer">
+      <button class="pill-btn" id="btn-restart">🔄 Заново</button>
+      <button class="pill-btn" id="btn-levels">🏠 Уровни</button>
+    </div>
+  </div>
+
+  <footer>Сделано с любовью 💛</footer>
+</div>
+
+<div id="overlay" class="hidden">
+  <div class="result-card">
+    <div class="result-emoji" id="result-emoji">🎉</div>
+    <div class="result-text" id="result-text">Котик выиграл!</div>
+    <div class="result-buttons">
+      <button class="big-btn" id="btn-play-again">Играть ещё раз</button>
+      <button class="big-btn secondary" id="btn-change-level">Сменить уровень</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const PLAYER = 'cat';   // человек = котик
+  const AI = 'dog';       // компьютер = щенок
+  const ICON = { cat: '🐱', dog: '🐶' };
+
+  let board = Array(9).fill(null);
+  let level = 'easy';
+  let gameOver = false;
+
+  const screenLevel = document.getElementById('screen-level');
+  const screenGame = document.getElementById('screen-game');
+  const boardEl = document.getElementById('board');
+  const turnBanner = document.getElementById('turn-banner');
+  const overlay = document.getElementById('overlay');
+  const resultEmoji = document.getElementById('result-emoji');
+  const resultText = document.getElementById('result-text');
+
+  // ---- simple beep sounds ----
+  let audioCtx;
+  function beep(freq, dur, type='sine'){
+    try{
+      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = type;
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.start(); osc.stop(audioCtx.currentTime + dur);
+    }catch(e){}
+  }
+  function soundTap(){ beep(520, 0.12); }
+  function soundWin(){ [523,659,784].forEach((f,i)=> setTimeout(()=>beep(f,0.25),i*120)); }
+  function soundLose(){ [400,320,260].forEach((f,i)=> setTimeout(()=>beep(f,0.3,'triangle'),i*150)); }
+  function soundDraw(){ beep(440,0.3,'triangle'); }
+
+  // ---- level selection ----
+  document.querySelectorAll('.level-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      level = btn.dataset.level;
+      startGame();
+    });
+  });
+
+  document.getElementById('btn-restart').addEventListener('click', startGame);
+  document.getElementById('btn-levels').addEventListener('click', ()=>{
+    screenGame.classList.add('hidden');
+    screenLevel.classList.remove('hidden');
+  });
+  document.getElementById('btn-play-again').addEventListener('click', ()=>{
+    overlay.classList.add('hidden');
+    startGame();
+  });
+  document.getElementById('btn-change-level').addEventListener('click', ()=>{
+    overlay.classList.add('hidden');
+    screenGame.classList.add('hidden');
+    screenLevel.classList.remove('hidden');
+  });
+
+  function startGame(){
+    board = Array(9).fill(null);
+    gameOver = false;
+    screenLevel.classList.add('hidden');
+    screenGame.classList.remove('hidden');
+    renderBoard();
+    setTurnBanner(true);
+  }
+
+  function setTurnBanner(playerTurn){
+    turnBanner.textContent = playerTurn ? 'Твой ход! 🐱' : 'Ход дружка 🐶';
+    turnBanner.style.transform = 'scale(1.08)';
+    setTimeout(()=> turnBanner.style.transform = 'scale(1)', 150);
+  }
+
+  function renderBoard(){
+    boardEl.innerHTML = '';
+    board.forEach((val, idx)=>{
+      const cell = document.createElement('div');
+      cell.className = 'cell' + (val ? ' filled' : '');
+      cell.textContent = val ? ICON[val] : '';
+      cell.addEventListener('click', ()=> onCellClick(idx));
+      boardEl.appendChild(cell);
+    });
+  }
+
+  function onCellClick(idx){
+    if (gameOver || board[idx]) return;
+    board[idx] = PLAYER;
+    soundTap();
+    renderBoard();
+
+    const winInfo = checkWin(board);
+    if (winInfo){ return endGame(winInfo); }
+    if (board.every(c=>c)){ return endGame(null); }
+
+    setTurnBanner(false);
+    setTimeout(aiMove, 550);
+  }
+
+  function aiMove(){
+    if (gameOver) return;
+    const idx = pickAiMove(level);
+    if (idx === null || idx === undefined) return;
+    board[idx] = AI;
+    soundTap();
+    renderBoard();
+
+    const winInfo = checkWin(board);
+    if (winInfo){ return endGame(winInfo); }
+    if (board.every(c=>c)){ return endGame(null); }
+
+    setTurnBanner(true);
+  }
+
+  function emptyIndices(b){
+    return b.map((v,i)=> v ? null : i).filter(v=> v !== null);
+  }
+
+  function pickAiMove(lvl){
+    const empties = emptyIndices(board);
+    if (empties.length === 0) return null;
+
+    if (lvl === 'easy'){
+      // полностью случайный ход
+      return empties[Math.floor(Math.random()*empties.length)];
+    }
+
+    if (lvl === 'medium'){
+      // 1) выиграть если можно
+      let move = findWinningMove(board, AI);
+      if (move !== null) return move;
+      // 2) заблокировать игрока
+      move = findWinningMove(board, PLAYER);
+      if (move !== null) return move;
+      // 3) иначе случайно
+      return empties[Math.floor(Math.random()*empties.length)];
+    }
+
+    // hard: минимакс (непобедимый)
+    return minimaxBestMove(board);
+  }
+
+  function findWinningMove(b, who){
+    const empties = emptyIndices(b);
+    for (const idx of empties){
+      const copy = b.slice();
+      copy[idx] = who;
+      if (checkWin(copy)) return idx;
+    }
+    return null;
+  }
+
+  const LINES = [
+    [0,1,2],[3,4,5],[6,7,8],
+    [0,3,6],[1,4,7],[2,5,8],
+    [0,4,8],[2,4,6]
+  ];
+
+  function checkWin(b){
+    for (const line of LINES){
+      const [a,c,d] = line;
+      if (b[a] && b[a]===b[c] && b[a]===b[d]){
+        return { winner: b[a], line };
+      }
+    }
+    return null;
+  }
+
+  function minimaxBestMove(b){
+    let bestScore = -Infinity;
+    let bestMove = null;
+    for (const idx of emptyIndices(b)){
+      const copy = b.slice();
+      copy[idx] = AI;
+      const score = minimax(copy, 0, false);
+      if (score > bestScore){
+        bestScore = score;
+        bestMove = idx;
+      }
+    }
+    return bestMove;
+  }
+
+  function minimax(b, depth, isMaximizing){
+    const win = checkWin(b);
+    if (win){
+      if (win.winner === AI) return 10 - depth;
+      if (win.winner === PLAYER) return depth - 10;
+    }
+    if (b.every(c=>c)) return 0;
+
+    if (isMaximizing){
+      let best = -Infinity;
+      for (const idx of emptyIndices(b)){
+        const copy = b.slice();
+        copy[idx] = AI;
+        best = Math.max(best, minimax(copy, depth+1, false));
+      }
+      return best;
+    } else {
+      let best = Infinity;
+      for (const idx of emptyIndices(b)){
+        const copy = b.slice();
+        copy[idx] = PLAYER;
+        best = Math.min(best, minimax(copy, depth+1, true));
+      }
+      return best;
+    }
+  }
+
+  function endGame(winInfo){
+    gameOver = true;
+    if (winInfo){
+      winInfo.line.forEach(i=>{
+        boardEl.children[i].classList.add('win');
+      });
+    }
+    setTimeout(()=> showResult(winInfo), 500);
+  }
+
+  function showResult(winInfo){
+    if (!winInfo){
+      resultEmoji.textContent = '🤝';
+      resultText.textContent = 'Ничья! Хорошая игра!';
+      soundDraw();
+    } else if (winInfo.winner === PLAYER){
+      resultEmoji.textContent = '🎉';
+      resultText.textContent = 'Котик выиграл! Ура!';
+      soundWin();
+      launchConfetti();
+    } else {
+      resultEmoji.textContent = '🐶';
+      resultText.textContent = 'Щенок выиграл! Попробуй ещё раз!';
+      soundLose();
+    }
+    overlay.classList.remove('hidden');
+  }
+
+  function launchConfetti(){
+    const emojis = ['🎉','⭐','🎈','🐾','✨'];
+    for (let i=0; i<24; i++){
+      const el = document.createElement('div');
+      el.className = 'confetti';
+      el.textContent = emojis[Math.floor(Math.random()*emojis.length)];
+      el.style.left = Math.random()*100 + 'vw';
+      el.style.animationDuration = (1.8 + Math.random()*1.4) + 's';
+      document.body.appendChild(el);
+      setTimeout(()=> el.remove(), 3500);
+    }
+  }
+
+})();
+</script>
+</body>
+</html>
